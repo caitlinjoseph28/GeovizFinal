@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geovisualization Final Project</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css"/>
+    <style> html { height:100%;}
+        body {
+            height:100%;
+            padding: 0;
+            margin: 0;
+        }
+    
+        #map {
+            width: 100%;
+            margin: 0 auto;
+            height: 95%;
+        } 
+        .info {
+            z-index: 1000;
+            position: absolute;
+            right: 40%;
+            top: 5%;
+            padding: 6px 8px;
+            font: 14px Arial, Helvetica, sans-serif;
+            text-align: center;
+            background: white;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+
+        .info h1 {
+            font-size: 16px;
+            margin: 0 0 5px;
+            color: #777777;
+        }
+
+
+        .legend {
+            line-height: 18px;
+            color: #333333;
+            font-family: 'Open Sans', Helvetica, sans-serif;
+            padding: 6px 8px;
+            background: white;
+            background: rgba(255,255,255,0.8);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+
+        .legend i {
+            width: 28px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+        }
+
+
+        .legend p {
+            font-size: 12px;
+            line-height: 18px;
+            margin: 0;
+        }
+        </style>
+</head>
+<body> 
+    <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <div id="map" style="width: 1000px; height: 600px"></div>
+    <script>
+        var map = L.map('map', {center: [41.50468098494366, -81.70417089352395], zoom: 11});
+    	L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Sources: GEBCO, NOAA, CHS, OSU, UNH, CSUMB, National Geographic, DeLorme, NAVTEQ, and Esri',
+        maxZoom: 13}).addTo(map);
+    	map.doubleClickZoom.disable();
+
+        //Chlorapleth map, probable vacant land
+        var probablevacantLayer = null;
+        $.getJSON("NB_probablevacant.json",function(data){
+            probablevacantlayer = L.geoJson(data, {
+                style: styleFunc,
+            }).addTo(map);
+        });
+
+        function styleFunc(feature){
+            return {
+                fillColor: setColorFunc(feature.properties.Vac_den),
+                fillOpacity: 0.9,
+                weight: 1,
+                opacity: 1,
+                color: '#ffffff',
+                dashArray: '3'
+            };
+        }
+
+        function setColorFunc(density){
+            return density > 0.72 ? '#006d2c' :
+                density > 0.58 ? '#31a354' :
+                density > 0.44 ? '#74c476' :
+                density > 0.29 ? '#a1d99b' :
+                density > 0.15 ? '#c7e9c0' :
+                                 '#edf8e9';
+        };
+
+        //Proportional symbol map
+        var landbankvacantLayer = null;
+        $.getJSON("LB_vacant_latlng.json",function(data){
+            landbankvacantLayer = L.geoJson(data, {
+                pointToLayer: function(feature, latlng) {
+                    return L.circleMarker (latlng, {
+                        weight: 1,
+                        radius: Math.round(feature.properties.LBvacant_c/22),
+                        fillColor: 'lightblue'
+                    });
+                },
+                onEachFeature: function(feature, layer){
+                    layer.bindTooltip('Number of Land-Bank Owned Vacant Properties: '+feature.properties.LBvacant_c);
+                    layer.on('mouseover', function() {
+                        layer.setStyle({
+                            fillColor: 'darkgreen'
+                            });
+                        });
+                    layer.on('mouseout', function() {
+                        layer.setStyle({
+                            fillColor: 'lightblue'
+                        });
+                    });
+                }
+            }).addTo(map);
+        });
+
+       
+        // Scale Bar
+        L.control.scale({position: 'bottomleft'}).addTo(map);
+
+        // point marker, Cleveland Land Bank
+        var myDataPoint = L.marker([41.49836630655106, -81.68593168510388]).addTo(map);
+        myDataPoint.bindPopup("Cuyahoga Land Bank Office");
+        myDataPoint.bindPopup("<h3>Cuyahoga Land Bank Office</h3>");
+
+        // Legend
+        var legend = L.control({position: 'bottomright'});
+
+    // Function that runs when legend is added to map
+        legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'legend');            
+        div.innerHTML += '<b>Total % of Vacant Parcels</b><br />';
+        div.innerHTML += 'by Neighborhood<br />';
+        div.innerHTML += '<br>';
+        div.innerHTML += '<i style="background: #006d2c"></i><p>58-72</p>';
+        div.innerHTML += '<i style="background: #31a354"></i><p>44-58</p>';
+        div.innerHTML += '<i style="background: #74c476"></i><p>29-44</p>';
+        div.innerHTML += '<i style="background: #a1d99b"></i><p>15-29</p>';
+        div.innerHTML += '<i style="background: #c7e9c0"></i><p>0-15</p>';
+        div.innerHTML += '<hr>';
+        div.innerHTML += '<i style="background: #edf8e9"></i><p>No Data</p>';
+        
+            return div;
+        };
+
+        legend.addTo(map);
+
+    
+    </script>
+</body>
+</html>
